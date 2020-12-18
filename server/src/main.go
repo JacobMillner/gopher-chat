@@ -1,9 +1,10 @@
 package main
 
 import (
-        "log"
-        "net/http"
-        "github.com/gorilla/websocket"
+	"log"
+	"net/http"
+
+	"github.com/gorilla/websocket"
 )
 
 // TODO: make this concurrency-safe
@@ -13,7 +14,7 @@ var broadcast = make(chan Message)           // broadcast channel
 // Configure the upgrader
 var upgrader = websocket.Upgrader{}
 
-// Define our message object
+// Message struct for chat messages
 type Message struct {
 	Email    string `json:"email"`
 	Username string `json:"username"`
@@ -23,7 +24,7 @@ type Message struct {
 func main() {
 	// Create a simple file server for our static client
 	// TODO: remove this and add in react native
-	fs := http.FileServer(http.Dir("../public"))
+	fs := http.FileServer(http.Dir("../../client"))
 	http.Handle("/", fs)
 
 	// Configure websocket route
@@ -32,11 +33,11 @@ func main() {
 	// Start listening for incoming chat messages
 	go handleMessages()
 
-	// Start the server on localhost port 8899 and log any errors
-	log.Println("http server started on :8899")
-	err := http.ListenAndServe(":8899", nil)
+	// Start the server on localhost port 8000 and log any errors
+	log.Println("http server started on :8000")
+	err := http.ListenAndServe(":8000", nil)
 	if err != nil {
-			log.Fatal("ListenAndServe: ", err)
+		log.Fatal("ListenAndServe: ", err)
 	}
 }
 
@@ -44,7 +45,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	// Upgrade initial GET request to a websocket
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-			log.Fatal(err)
+		log.Fatal(err)
 	}
 	// Make sure we close the connection when the function returns
 	defer ws.Close()
@@ -57,9 +58,9 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		// Read in a new message as JSON and map it to a Message object
 		err := ws.ReadJSON(&msg)
 		if err != nil {
-				log.Printf("error: %v", err)
-				delete(clients, ws)
-				break
+			log.Printf("error: %v", err)
+			delete(clients, ws)
+			break
 		}
 		// Send the newly received message to the broadcast channel
 		broadcast <- msg
@@ -68,16 +69,16 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 
 func handleMessages() {
 	for {
-			// Grab the next message from the broadcast channel
-			msg := <-broadcast
-			// Send it out to every client that is currently connected
-			for client := range clients {
-					err := client.WriteJSON(msg)
-					if err != nil {
-							log.Printf("error: %v", err)
-							client.Close()
-							delete(clients, client)
-					}
+		// Grab the next message from the broadcast channel
+		msg := <-broadcast
+		// Send it out to every client that is currently connected
+		for client := range clients {
+			err := client.WriteJSON(msg)
+			if err != nil {
+				log.Printf("error: %v", err)
+				client.Close()
+				delete(clients, client)
 			}
+		}
 	}
 }
