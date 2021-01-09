@@ -3,7 +3,9 @@ package main
 import (
 	"log"
 	"net/http"
+	"net"
 
+	"google.golang.org/grpc"
 	"github.com/gorilla/websocket"
 )
 
@@ -27,18 +29,16 @@ func main() {
 	fs := http.FileServer(http.Dir("../../client"))
 	http.Handle("/", fs)
 
-	// Configure websocket route
-	http.HandleFunc("/ws", handleConnections)
-
-	// Start listening for incoming chat messages
-	go handleMessages()
-
-	// Start the server on localhost port 8000 and log any errors
-	log.Println("http server started on :8000")
-	err := http.ListenAndServe(":8000", nil)
+	lis, err := net.Listen("tcp", ":9000")
 	if err != nil {
-		log.Fatal("ListenAndServe: ", err)
+    log.Fatalf("failed to listen: %v", err)
 	}
+
+	grpcServer := grpc.NewServer()
+
+	if err := grpcServer.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %s", err)
+	}	
 }
 
 func handleConnections(w http.ResponseWriter, r *http.Request) {
